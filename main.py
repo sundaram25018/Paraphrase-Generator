@@ -1,10 +1,11 @@
 from flask import Flask, request, render_template
-from markupsafe import Markup 
+from markupsafe import Markup
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import nltk
 import re
 from nltk.tokenize import sent_tokenize
+from functools import lru_cache
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,6 +18,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # Load model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME).to(DEVICE)
+if DEVICE == "cuda":
+    model.half()
 
 # Helper function to make URLs clickable
 def linkify(text):
@@ -25,7 +28,7 @@ def linkify(text):
     return Markup(linked)  # Treat as safe HTML
 
 @torch.no_grad()
-def paraphrase_chunk(text, max_input_length=512, max_output_length=512, top_k=120, top_p=0.95):
+def paraphrase_chunk(text, max_input_length=512, max_output_length=512, top_k=50, top_p=0.90):
     text = text.strip()
     tokens = tokenizer.encode(text, truncation=True, max_length=max_input_length)
     truncated_text = tokenizer.decode(tokens, skip_special_tokens=True)
@@ -41,10 +44,12 @@ def paraphrase_chunk(text, max_input_length=512, max_output_length=512, top_k=12
         do_sample=True,
         top_k=top_k,
         top_p=top_p,
+        temperature=0.8,
     )
 
     return tokenizer.decode(output[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
+@lru_cache(maxsize=32)
 def paraphrase_full_text(paragraph):
     sentences = sent_tokenize(paragraph)
     return " ".join(paraphrase_chunk(sent) for sent in sentences)
@@ -69,8 +74,9 @@ def paraphrase_partial_fixed(paragraph):
         max_length=400,
         num_return_sequences=1,
         do_sample=True,
-        top_k=120,
-        top_p=0.95,
+        top_k=50,
+        top_p=0.90,
+        temperature=0.8,
     )
 
     paraphrased_part = tokenizer.decode(output[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
@@ -93,7 +99,6 @@ def index():
         elif action == "partial" and partial_text:
             result = paraphrase_partial_fixed(partial_text)
 
-        # Make links clickable
         result = linkify(result)
 
     return render_template("index.html", result=result, full_text=full_text, partial_text=partial_text, action=action)
