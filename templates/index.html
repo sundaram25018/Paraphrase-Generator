@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paraphrasing Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+    }
+
+    form {
+      margin-bottom: 40px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 15px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+      min-height: 120px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 12px 20px;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .result-box {
+      margin-top: 25px;
+    }
+
+    .result-text {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Paraphrasing Tool</h2>
+
+    <!-- Full Text Form -->
+    <form method="POST">
+      <label for="full_text">Full Text:</label>
+      <textarea name="full_text" id="full_text" placeholder="Enter full text to paraphrase..."></textarea>
+      <input type="hidden" name="action" value="full">
+      <button type="submit">Paraphrase Full Text</button>
+
+      {% if action == "full" and result %}
+      <div class="result-box">
+        <h3>Paraphrased Full Text:</h3>
+        <div class="result-text">{{ result|safe }}</div>
+      </div>
+      {% endif %}
+    </form>
+
+    <hr>
+
+    <!-- Partial Text Form -->
+    <form method="POST">
+      <label for="partial_text">Partial Text:</label>
+      <textarea name="partial_text" id="partial_text" placeholder="Enter text to paraphrase Partial words..."></textarea>
+      <input type="hidden" name="action" value="partial">
+      <button type="submit">Paraphrase Partial Text</button>
+
+      {% if action == "partial" and result %}
+      <div class="result-box">
+        <h3>Paraphrased Partial Text:</h3>
+        <div class="result-text">{{ result|safe }}</div>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</body>
+</html>
