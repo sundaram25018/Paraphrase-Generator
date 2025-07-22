@@ -91,7 +91,7 @@
     <!-- Full Text Form -->
     <form method="POST">
       <label for="full_text">Full Text:</label>
-      <textarea name="full_text" id="full_text" placeholder="Enter full text to paraphrase..."></textarea>
+      <textarea name="full_text" id="full_text" placeholder="Enter full text to paraphrase...">{{ full_text }}</textarea>
       <input type="hidden" name="action" value="full">
       <button type="submit">Paraphrase Full Text</button>
 
@@ -108,7 +108,7 @@
     <!-- Partial Text Form -->
     <form method="POST">
       <label for="partial_text">Partial Text:</label>
-      <textarea name="partial_text" id="partial_text" placeholder="Enter text to paraphrase Partial words..."></textarea>
+      <textarea name="partial_text" id="partial_text" placeholder="Enter text to paraphrase Partial words...">{{ partial_text }}</textarea>
       <input type="hidden" name="action" value="partial">
       <button type="submit">Paraphrase Partial Text</button>
 

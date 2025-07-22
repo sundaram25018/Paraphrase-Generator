@@ -20,6 +20,7 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME).to(DEVICE)
 if DEVICE == "cuda":
     model.half()
+model.eval()  # Set model to evaluation mode
 
 # Helper function to make URLs clickable
 def linkify(text):
@@ -28,7 +29,7 @@ def linkify(text):
     return Markup(linked)  # Treat as safe HTML
 
 @torch.no_grad()
-def paraphrase_chunk(text, max_input_length=512, max_output_length=512, top_k=50, top_p=0.90):
+def paraphrase_chunk(text, max_input_length=256, max_output_length=256, top_k=30, top_p=0.85):
     text = text.strip()
     tokens = tokenizer.encode(text, truncation=True, max_length=max_input_length)
     truncated_text = tokenizer.decode(tokens, skip_special_tokens=True)
@@ -50,9 +51,23 @@ def paraphrase_chunk(text, max_input_length=512, max_output_length=512, top_k=50
     return tokenizer.decode(output[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
 @lru_cache(maxsize=32)
+@torch.no_grad()
 def paraphrase_full_text(paragraph):
     sentences = sent_tokenize(paragraph)
-    return " ".join(paraphrase_chunk(sent) for sent in sentences)
+    prompts = [f"paraphrase: {sent.strip()} </s>" for sent in sentences]
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=256).to(DEVICE)
+    outputs = model.generate(
+        input_ids=inputs["input_ids"],
+        attention_mask=inputs["attention_mask"],
+        max_length=256,
+        num_return_sequences=1,
+        do_sample=True,
+        top_k=30,
+        top_p=0.85,
+        temperature=0.8,
+    )
+    paraphrased_sentences = tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+    return " ".join(paraphrased_sentences)
 
 @torch.no_grad()
 def paraphrase_partial_fixed(paragraph):
@@ -66,16 +81,16 @@ def paraphrase_partial_fixed(paragraph):
     after = " ".join(words[end_index:])
 
     prompt = f"paraphrase: {to_paraphrase} </s>"
-    inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True, max_length=512).to(DEVICE)
+    inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True, max_length=256).to(DEVICE)
 
     output = model.generate(
         input_ids=inputs["input_ids"],
         attention_mask=inputs["attention_mask"],
-        max_length=400,
+        max_length=200,
         num_return_sequences=1,
         do_sample=True,
-        top_k=50,
-        top_p=0.90,
+        top_k=30,
+        top_p=0.85,
         temperature=0.8,
     )
 
