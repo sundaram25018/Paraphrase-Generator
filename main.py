@@ -20,12 +20,13 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME).to(DEVICE)
 if DEVICE == "cuda":
     model.half()
-model.eval()  # Set model to evaluation mode
+model.eval()  
 
 # Helper function to make URLs clickable
 def linkify(text):
     url_pattern = r'(https?://[^\s]+)'
     linked = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', text)
+    linked = linked.replace('\n', '<br>')
     return Markup(linked)  # Treat as safe HTML
 
 @torch.no_grad()
@@ -53,49 +54,60 @@ def paraphrase_chunk(text, max_input_length=256, max_output_length=256, top_k=30
 @lru_cache(maxsize=32)
 @torch.no_grad()
 def paraphrase_full_text(paragraph):
-    sentences = sent_tokenize(paragraph)
-    prompts = [f"paraphrase: {sent.strip()} </s>" for sent in sentences]
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=256).to(DEVICE)
-    outputs = model.generate(
-        input_ids=inputs["input_ids"],
-        attention_mask=inputs["attention_mask"],
-        max_length=256,
-        num_return_sequences=1,
-        do_sample=True,
-        top_k=30,
-        top_p=0.85,
-        temperature=0.8,
-    )
-    paraphrased_sentences = tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-    return " ".join(paraphrased_sentences)
+    # Split input into paragraphs (by double newlines or single newlines)
+    paragraphs = [p for p in paragraph.split('\n') if p.strip()]
+    paraphrased_paragraphs = []
+    for para in paragraphs:
+        sentences = sent_tokenize(para)
+        prompts = [f"paraphrase: {sent.strip()} </s>" for sent in sentences]
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=256).to(DEVICE)
+        outputs = model.generate(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            max_length=256,
+            num_return_sequences=1,
+            do_sample=True,
+            top_k=30,
+            top_p=0.85,
+            temperature=0.8,
+        )
+        paraphrased_sentences = tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        paraphrased_paragraphs.append(" ".join(paraphrased_sentences))
+    return "\n\n".join(paraphrased_paragraphs)
 
 @torch.no_grad()
 def paraphrase_partial_fixed(paragraph):
-    words = paragraph.strip().split()
-    if len(words) <= 15:
-        return paraphrase_full_text(paragraph)
+    # Split input into paragraphs (by double newlines or single newlines)
+    paragraphs = [p for p in paragraph.split('\n') if p.strip()]
+    paraphrased_paragraphs = []
+    for para in paragraphs:
+        words = para.strip().split()
+        if len(words) <= 15:
+            paraphrased_paragraphs.append(paraphrase_full_text(para))
+            continue
 
-    start_index = 0
-    end_index = 15
-    to_paraphrase = " ".join(words[start_index:end_index])
-    after = " ".join(words[end_index:])
+        start_index = 0
+        end_index = 15
+        to_paraphrase = " ".join(words[start_index:end_index])
+        after = " ".join(words[end_index:])
 
-    prompt = f"paraphrase: {to_paraphrase} </s>"
-    inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True, max_length=256).to(DEVICE)
+        prompt = f"paraphrase: {to_paraphrase} </s>"
+        inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True, max_length=256).to(DEVICE)
 
-    output = model.generate(
-        input_ids=inputs["input_ids"],
-        attention_mask=inputs["attention_mask"],
-        max_length=200,
-        num_return_sequences=1,
-        do_sample=True,
-        top_k=30,
-        top_p=0.85,
-        temperature=0.8,
-    )
+        output = model.generate(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            max_length=200,
+            num_return_sequences=1,
+            do_sample=True,
+            top_k=30,
+            top_p=0.85,
+            temperature=0.8,
+        )
 
-    paraphrased_part = tokenizer.decode(output[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
-    return f"{paraphrased_part} {after}".strip()
+        paraphrased_part = tokenizer.decode(output[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        paraphrased_paragraphs.append(f"{paraphrased_part} {after}".strip())
+    return "\n\n".join(paraphrased_paragraphs)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
