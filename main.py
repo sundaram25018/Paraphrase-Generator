@@ -7,12 +7,12 @@ import re
 from nltk.tokenize import sent_tokenize
 from functools import lru_cache
 
-# Initialize Flask app
+
 app = Flask(__name__)
 nltk.download("punkt")
 
-# Constants
-MODEL_NAME = "Vamsi/T5_Paraphrase_Paws"
+
+MODEL_NAME = "./local_models/t5_paraphrase"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Load model and tokenizer
@@ -25,9 +25,14 @@ model.eval()
 # Helper function to make URLs clickable
 def linkify(text):
     url_pattern = r'(https?://[^\s]+)'
-    linked = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', text)
+    
+    # Use a lambda to safely escape the match
+    linked = re.sub(url_pattern, lambda m: f'<a href="{m.group(1)}" target="_blank">{m.group(1)}</a>', text)
+    
+    # Convert newlines to <br> tags
     linked = linked.replace('\n', '<br>')
-    return Markup(linked)  # Treat as safe HTML
+    
+    return Markup(linked)
 
 @torch.no_grad()
 def paraphrase_chunk(text, max_input_length=256, max_output_length=256, top_k=30, top_p=0.85):
@@ -77,7 +82,7 @@ def paraphrase_full_text(paragraph):
 
 @torch.no_grad()
 def paraphrase_partial_fixed(paragraph):
-    # Split input into paragraphs (by double newlines or single newlines)
+    
     paragraphs = [p for p in paragraph.split('\n') if p.strip()]
     paraphrased_paragraphs = []
     for para in paragraphs:
